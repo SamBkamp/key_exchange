@@ -1,4 +1,4 @@
-FLAGS := -pthread -Wall
+FLAGS := -pthread -Wall -Wextra -ggdb
 
 
 server.bin:server.c

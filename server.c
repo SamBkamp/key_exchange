@@ -2,13 +2,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <pthread.h>
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
 
 #define PORT 6060
-#define CLIENT_MAX 2
+#define CLIENTS_MAX 2
+
+typedef struct{
+  int sockfd;
+  pthread_t parent_thread;
+}worker_struct;
 
 int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
   *sockfd = socket(AF_INET, SOCK_STREAM, 0); //open a socket
@@ -37,10 +44,24 @@ int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
   return 0;
 }
 
+void thread_worker(void *arg){
+  worker_struct *w_struct = arg;
+  char buffer[2048];
+  ssize_t read_len = read(w_struct->sockfd, buffer, 2048);
 
+  while(read_len > 0){
+    buffer[read_len] = 0;
+    printf("%s", buffer);
+    read_len = read(w_struct->sockfd, buffer, 2048);
+  }
+  if(read_len < 0)
+    perror("read");
+  free(arg);
+}
 
 int main(int argc, char* argv[]){
-
+  pthread_t threads[CLIENTS_MAX];
+  uint8_t threads_started = 0;
   int sockfd;
   struct sockaddr_in host_addr;
   struct sockaddr_in peer_addr;
@@ -50,15 +71,18 @@ int main(int argc, char* argv[]){
 
   while(1){
     int inbd_sock = accept(sockfd, (struct sockaddr*)&peer_addr, &peer_addr_size);
-    char buffer[2048];
-    ssize_t read_len = read(inbd_sock, buffer, 2048);
-
-    while(read_len > 0){
-      buffer[read_len] = 0;
-      printf("%s", buffer);
-      read_len = read(inbd_sock, buffer, 2048);
-    }
-    if(read_len < 0)
-      perror("read");
+    if(threads_started < CLIENTS_MAX){
+      worker_struct *w_struct = malloc(sizeof(worker_struct));
+      w_struct->sockfd = inbd_sock;
+      w_struct->parent_thread = pthread_self();
+      int thread_creator = pthread_create(&threads[threads_started], NULL, (void*)thread_worker, w_struct);
+      if(thread_creator != 0){
+	perror("thread creator");
+	free(w_struct);
+	continue;
+      }
+      threads_started++;
+    }else
+      close(inbd_sock);
   }
 }
