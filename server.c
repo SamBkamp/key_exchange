@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <pthread.h>
+#include <poll.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -14,8 +15,8 @@
 
 typedef struct{
   int sockfd;
-  pthread_t thread_no;
-}worker_data;
+  struct pollfd fdtab;
+}client;
 
 int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
   *sockfd = socket(AF_INET, SOCK_STREAM, 0); //open a socket
@@ -44,41 +45,47 @@ int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
   return 0;
 }
 
-void thread_worker(void *arg){
-  worker_data *w_struct = arg;
-  char buffer[2048];
-  ssize_t read_len = read(w_struct->sockfd, buffer, 2048);
 
-  while(read_len > 0){
-    buffer[read_len] = 0;
-    printf("%s", buffer);
-    read_len = read(w_struct->sockfd, buffer, 2048);
-  }
-  if(read_len < 0)
-    perror("read");
+void init_fdtabs(client *in_data){
+
+  in_data->fdtab.fd = in_data->sockfd;
+  in_data->fdtab.events = POLLIN;
+  in_data->fdtab.revents = 0;
 }
 
-int main(int argc, char* argv[]){
-  worker_data threads[CLIENTS_MAX];
-  uint8_t threads_started = 0;
+int main(){
+  client clients[CLIENTS_MAX];
+  uint8_t clients_connected = 0;
   int sockfd;
   struct sockaddr_in host_addr;
   struct sockaddr_in peer_addr;
   socklen_t peer_addr_size = sizeof(peer_addr);
+
+  //open binded listening port
   if(open_connection(PORT, &sockfd, &host_addr) == -1)
     return 1;
 
-  while(1){
+
+
+  while(clients_connected < CLIENTS_MAX){
     int inbd_sock = accept(sockfd, (struct sockaddr*)&peer_addr, &peer_addr_size);
-    if(threads_started < CLIENTS_MAX){
-      threads[threads_started].sockfd = inbd_sock;
-      int thread_creator = pthread_create(&threads[threads_started].thread_no, NULL, (void*)thread_worker, &threads[threads_started]);
-      if(thread_creator != 0){
-	perror("thread creator");
-	continue;
-      }else
-	threads_started++;
-    }else
-      close(inbd_sock);
+    clients[clients_connected].sockfd = inbd_sock;
+    init_fdtabs(&clients[clients_connected]);
+    clients_connected++;
+  }
+  printf("all clients connected!\n");
+  while(1){
+    char buffer[1028];
+    for(int i = 0; i < CLIENTS_MAX; i++){
+      int retpoll = poll(&clients[i].fdtab, 1, 100);
+      if(retpoll < 0){
+	perror("poll");
+	return 1;
+      }
+      if(clients[i].fdtab.revents & POLLIN){
+	read(clients[i].sockfd, buffer, 1028);
+	printf("%s", buffer);
+      }
+    }
   }
 }
