@@ -74,7 +74,8 @@ int main(){
     clients_connected++;
   }
   printf("all clients connected!\n");
-  while(1){
+  uint8_t do_work = 1;
+  while(do_work){
     char buffer[1028];
     for(int i = 0; i < CLIENTS_MAX; i++){
       int retpoll = poll(&clients[i].fdtab, 1, 100);
@@ -83,9 +84,15 @@ int main(){
 	return 1;
       }
       if(clients[i].fdtab.revents & POLLIN){
-	read(clients[i].sockfd, buffer, 1028);
+	ssize_t read_amt = read(clients[i].sockfd, buffer, 1028);
+	if(read_amt == 0)
+	  do_work = 0;
 	printf("%s", buffer);
       }
     }
   }
+  close(clients[0].sockfd);
+  close(clients[1].sockfd);
+  printf("closed. Good bye\n");
+  return 0;
 }
