@@ -20,7 +20,7 @@ int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
   if(setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) != 0)
     perror("[NON-FATAL] couldn't set sockopt\n");
 
-  memset(host_addr, 0, sizeof(host_addr)); //reset our socket address structs
+  memset(host_addr, 0, sizeof(*host_addr)); //reset our socket address structs
   host_addr->sin_family = AF_INET; //were using IP
   host_addr->sin_port = htons(port); //turn from host byte order (little endian) to network byte (big endian)
   host_addr->sin_addr = (struct in_addr){INADDR_ANY}; //accept connections from anywhere (0.0.0.0)
