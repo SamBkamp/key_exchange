@@ -14,8 +14,8 @@
 
 typedef struct{
   int sockfd;
-  pthread_t parent_thread;
-}worker_struct;
+  pthread_t thread_no;
+}worker_data;
 
 int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
   *sockfd = socket(AF_INET, SOCK_STREAM, 0); //open a socket
@@ -45,7 +45,7 @@ int open_connection(uint16_t port, int *sockfd, struct sockaddr_in *host_addr){
 }
 
 void thread_worker(void *arg){
-  worker_struct *w_struct = arg;
+  worker_data *w_struct = arg;
   char buffer[2048];
   ssize_t read_len = read(w_struct->sockfd, buffer, 2048);
 
@@ -56,11 +56,10 @@ void thread_worker(void *arg){
   }
   if(read_len < 0)
     perror("read");
-  free(arg);
 }
 
 int main(int argc, char* argv[]){
-  pthread_t threads[CLIENTS_MAX];
+  worker_data threads[CLIENTS_MAX];
   uint8_t threads_started = 0;
   int sockfd;
   struct sockaddr_in host_addr;
@@ -72,16 +71,13 @@ int main(int argc, char* argv[]){
   while(1){
     int inbd_sock = accept(sockfd, (struct sockaddr*)&peer_addr, &peer_addr_size);
     if(threads_started < CLIENTS_MAX){
-      worker_struct *w_struct = malloc(sizeof(worker_struct));
-      w_struct->sockfd = inbd_sock;
-      w_struct->parent_thread = pthread_self();
-      int thread_creator = pthread_create(&threads[threads_started], NULL, (void*)thread_worker, w_struct);
+      threads[threads_started].sockfd = inbd_sock;
+      int thread_creator = pthread_create(&threads[threads_started].thread_no, NULL, (void*)thread_worker, &threads[threads_started]);
       if(thread_creator != 0){
 	perror("thread creator");
-	free(w_struct);
 	continue;
-      }
-      threads_started++;
+      }else
+	threads_started++;
     }else
       close(inbd_sock);
   }
