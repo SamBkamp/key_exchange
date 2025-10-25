@@ -65,8 +65,6 @@ int main(){
   if(open_connection(PORT, &sockfd, &host_addr) == -1)
     return 1;
 
-
-
   while(clients_connected < CLIENTS_MAX){
     int inbd_sock = accept(sockfd, (struct sockaddr*)&peer_addr, &peer_addr_size);
     clients[clients_connected].sockfd = inbd_sock;
@@ -74,6 +72,7 @@ int main(){
     clients_connected++;
   }
   printf("all clients connected!\n");
+  //main event loop
   uint8_t do_work = 1;
   while(do_work){
     char buffer[1028];
@@ -87,10 +86,16 @@ int main(){
 	ssize_t read_amt = read(clients[i].sockfd, buffer, 1028);
 	if(read_amt == 0)
 	  do_work = 0;
-	printf("%s", buffer);
+	else{
+	  buffer[read_amt] = 0;
+	  printf("[%d] %s", i, buffer);
+	  write(clients[i^1].sockfd, buffer, strlen(buffer));
+	}
       }
+      //polled but no POLLIN
     }
   }
+  fflush(stdout);
   close(clients[0].sockfd);
   close(clients[1].sockfd);
   printf("closed. Good bye\n");
