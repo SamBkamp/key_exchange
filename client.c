@@ -17,10 +17,17 @@
 
 
 typedef struct{
+  uint32_t e;
+  uint32_t d;
+  uint32_t n;
+}key;
+
+typedef struct{
   uint8_t step;
   char *client_key;
   char *host_key;
 }handshake_state;
+
 
 int open_key(const char* path, char* buffer, ssize_t size){
   int public_key_fd;
