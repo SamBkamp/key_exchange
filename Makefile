@@ -1,8 +1,14 @@
 FLAGS := -pthread -Wall -Wextra -ggdb
 
 
-server.bin:server.c
-	gcc server.c ${FLAGS} -o server.bin
-
-host.bin:host.c
+server:server.c
 	gcc $^ ${FLAGS} -o $@
+
+host:host.c
+	gcc $^ ${FLAGS} -o $@
+
+client:client.c
+	gcc $^ ${FLAGS} -o $@
+
+all:host server client
+	echo "Making all"
