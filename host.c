@@ -24,7 +24,7 @@ int main(){
   struct addrinfo hints, *res;
   int sockfd, gai;
   char buffer[BUFFER_SIZE];
-  
+
   //hostname resolution
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
@@ -38,8 +38,8 @@ int main(){
     printf("could not resolve hostname\n");
     freeaddrinfo(res);
     return 1;
-  }    
-    
+  }
+
   //construct socket
   sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   if(sockfd < 0){
@@ -55,40 +55,18 @@ int main(){
   freeaddrinfo(res);
 
   //main loop
-  while(1){
+  uint8_t do_work = 1;
+  while(do_work){
     ssize_t bytes_read = read(sockfd, buffer, BUFFER_SIZE);
     if(bytes_read == 0)
       break;
     buffer[bytes_read] = 0;
-    
-    switch(hs_state.step){
-    case 0:
-      if(strncmp(buffer, "SYN\n", 5)==0){
-	hs_state.step ++;
-	strncpy(buffer, "SYN ACK\n", 10);
-	write(sockfd, buffer, strlen(buffer));
-	break;
-      }
-      goto fail; //FIGHT ME
-    case 1:
-      if(strncmp(buffer, "ACK\n", 5)!=0)
-	goto fail;
-      hs_state.step++;
-      break;
-    case 2:
-      if(strncmp(buffer, "ClientHello\n", 13)==0){
-	hs_state.step ++;
-	strncpy(buffer, "ServerHello\n", 13);
-	write(sockfd, buffer, strlen(buffer));
-	break;
-      }
-    fail:
-    default:
-      printf("handshake corrupted, exiting\n");
-      strncpy(buffer, "goodbye\n", 9);
+    if(strncmp(buffer, "ClientHello\n", 13) == 0){
+      sprintf(buffer, "%s\n", "ServerHello");
       write(sockfd, buffer, strlen(buffer));
-      close(sockfd);
-      return 1;
+      break;
     }
+    printf("handshake corrupted. Aborting.\n");
+    close(sockfd);
   }
 }
